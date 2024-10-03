@@ -134,8 +134,8 @@ def download_torrent(magnet_link, save_path):
 # Mega.nz upload function
 def upload_to_mega(filename):
     mega = Mega()
-    email = os.getenv('MEGA_EMAIL')
-    password = os.getenv('MEGA_PASSWORD')
+    email = input("MEGA_EMAIL")
+    password = input("MEGA_PASSWORD")
 
     m = mega.login(email, password) if email and password else mega.login()
     print("\nUploading file to Mega.nz...")
