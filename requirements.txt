@@ -1,0 +1,4 @@
+python-libtorrent
+requests
+tqdm
+mega.py
