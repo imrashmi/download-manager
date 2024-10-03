@@ -2,6 +2,13 @@
 
 This Python script provides a unified interface for downloading files from various sources, including direct URLs, torrents (magnet URI and `.torrent` files), YouTube videos, YouTube playlists, and Google Drive. It also supports uploading downloaded files to Mega.nz for storage and sharing.
 
+## Version
+![Powered by Python](https://img.shields.io/badge/Language-Python-blue.svg)
+![Powered by ChatGPT](https://img.shields.io/badge/Organised%20by-ChatGPT-red.svg)
+![Hosted by GitHub](https://img.shields.io/badge/Hosted%20by-GitHub-brightgreen.svg)
+
+![Build Version](https://img.shields.io/badge/Version-1.0.0-brightgreen.svg)
+![Build](https://img.shields.io/badge/Build-1.1.2-cyan.svg)
 ## Features
 
 1. **Direct File Download**: Download any file from a direct URL with progress tracking, time taken, and automatic retries.
@@ -27,6 +34,30 @@ You can install all the dependencies using the `requirements.txt` file.
 ```bash
 pip install -r requirements.txt
 ```
+## Installation
+
+1. **Clone this repository**:
+   ```bash
+   git clone https://github.com/your-username/your-repo-name.git
+   cd your-repo-name
+   ```
+
+2. **Install required dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. **Set up Mega.nz credentials**:
+   - You can set your Mega.nz email and password in environment variables:
+     ```bash
+     export MEGA_EMAIL=your-email
+     export MEGA_PASSWORD=your-password
+     ```
+   - Alternatively, you can enter them manually when prompted during the upload process.
+
+4. **Set up Google API for Drive File Downloads**:
+   - Download your `credentials.json` file from the Google API Console.
+   - Save it in the project folder.
 
 ## Usage
 
@@ -98,4 +129,6 @@ This project is licensed under the GNU General Public License v3.0. You are free
 
 See the LICENSE file for more details.
 
+```web
+https://www.gnu.org/licenses/
 ```
