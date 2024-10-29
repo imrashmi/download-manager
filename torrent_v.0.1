@@ -1,0 +1,153 @@
+import subprocess
+import sys
+import importlib
+import time
+import datetime
+import os
+import requests
+from tqdm import tqdm
+
+# Function to install a package if it's not already installed
+def install_package(package_name):
+    try:
+        importlib.import_module(package_name)
+        print(f"'{package_name}' is already installed.")
+    except ImportError:
+        print(f"'{package_name}' is not installed. Installing now...")
+        subprocess.check_call([sys.executable, "-m", "pip", "install", package_name])
+        print(f"'{package_name}' installed successfully.")
+
+# Ensure required packages are installed
+def check_and_install_dependencies():
+    packages = ['libtorrent', 'tqdm', 'requests']
+    for package in packages:
+        install_package(package)
+
+# Setting up session and parameters
+def setup_torrent_session(save_path):
+    import libtorrent as lt
+    ses = lt.session()
+    ses.listen_on(6881, 6891)  # Corrected to pass integers
+    params = {
+        'save_path': save_path,
+        'storage_mode': lt.storage_mode_t.storage_mode_sparse
+    }
+    return ses, params
+
+# Determine if the input is a magnet URI or a .torrent URL
+def parse_link(input_link):
+    import libtorrent as lt
+    if input_link.startswith("magnet:?"):
+        return input_link  # It’s already a magnet link
+
+    # Otherwise, assume it's a URL pointing to a .torrent file
+    try:
+        response = requests.get(input_link, stream=True)
+        if response.status_code == 200:
+            with open("temp.torrent", "wb") as f:
+                f.write(response.content)
+            info = lt.torrent_info("temp.torrent")
+            magnet_uri = lt.make_magnet_uri(info)
+            os.remove("temp.torrent")  # Clean up the downloaded .torrent file
+            return magnet_uri
+        else:
+            print(f"Failed to download .torrent file from {input_link}. Status code: {response.status_code}")
+            return None
+    except Exception as e:
+        print(f"Error while downloading or parsing .torrent file: {e}")
+        return None
+
+# Display downloaded files and folders in a tree format
+def display_download_tree(directory):
+    total_size = 0
+    for root, dirs, files in os.walk(directory):
+        level = root.replace(directory, '').count(os.sep)
+        indent = ' ' * 4 * (level)
+        print(f"{indent}[Folder] {os.path.basename(root)}/")
+        sub_indent = ' ' * 4 * (level + 1)
+        
+        for f in files:
+            file_path = os.path.join(root, f)
+            file_size = os.path.getsize(file_path)
+            total_size += file_size
+            print(f"{sub_indent}[File] {f} - {file_size / (1024 * 1024):.2f} MB")
+    
+    print(f"\nTotal Size: {total_size / (1024 * 1024):.2f} MB")
+
+# Main function to start download
+def download_torrent(link, save_path):
+    import libtorrent as lt
+    ses, params = setup_torrent_session(save_path)
+    ses.apply_settings({'enable_dht': True})  # Updated DHT settings
+
+    try:
+        print(f'Starting download to: {save_path}')
+        print(f'Magnet Link: {link}')
+
+        handle = ses.add_torrent({'url': link, 'save_path': save_path})  # Updated to use `add_torrent`
+
+        # Wait for metadata to be downloaded
+        print("Downloading metadata...")
+        while not handle.has_metadata():
+            time.sleep(1)
+        
+        print(f'Got metadata, starting download: {handle.status().name}')  # Accessing name through `status()`
+        start_time = time.time()
+
+        # Set up the progress bar with tqdm
+        with tqdm(total=handle.status().total_wanted, unit='B', unit_scale=True, desc="Downloading") as pbar:
+            while handle.status().state != lt.torrent_status.seeding:
+                s = handle.status()
+                
+                # Update progress and file size
+                pbar.total = s.total_wanted  # Set total size if it changes dynamically
+                pbar.update(s.total_done - pbar.n)  # Update with the new amount downloaded
+
+                # Update download and upload speeds
+                pbar.set_postfix({
+                    "Down": f"{s.download_rate / 1000:.2f} kB/s",
+                    "Up": f"{s.upload_rate / 1000:.2f} kB/s",
+                    "Peers": s.num_peers
+                })
+
+                time.sleep(1)  # Adjust refresh rate as needed
+
+        end_time = time.time()
+        elapsed = int(end_time - start_time)
+        print(f"\n{handle.status().name} download complete!")  # Accessing name through `status()`
+        print(f"Elapsed Time: {elapsed // 60} min : {elapsed % 60} sec")
+        print(datetime.datetime.now())
+
+        # Display downloaded files and folders in a tree format
+        print("\nDownload Contents:")
+        display_download_tree(save_path)
+
+    except KeyboardInterrupt:
+        print("\nDownload interrupted.")
+    except Exception as e:
+        print(f"Error: {e}")
+    finally:
+        print("Cleaning up session.")
+        ses.pause()
+
+if __name__ == "__main__":
+    # Check and install dependencies
+    check_and_install_dependencies()
+
+    # Get the path to save the downloaded file(s)
+    save_path = input("Enter the path to save the downloaded file(s): ")
+
+    # Ensure the save path exists
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
+        print(f"Created directory: {save_path}")
+
+    # Input the link (can be a magnet URI or .torrent file URL)
+    input_link = input("Enter the magnet URI or .torrent URL: ")
+    magnet_link = parse_link(input_link)
+    
+    if magnet_link:
+        # Start the download
+        download_torrent(magnet_link, save_path)
+    else:
+        print("Failed to retrieve a valid magnet link.")
